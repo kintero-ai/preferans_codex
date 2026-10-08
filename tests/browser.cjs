@@ -24,6 +24,21 @@ const assert=require('node:assert/strict'),path=require('node:path');
       await page.locator('#hand .card').nth(0).click();await page.locator('#hand .card').nth(1).click();await page.click('[data-action="discard"]');assert.equal(await page.locator('#hand .card').count(),10);
       await page.reload();assert.equal(await page.locator('#hand .card').count(),10);assert.equal(await page.evaluate(()=>state.target),15);
     }
+    // The human passes: the sole whisting bot must play the human hand automatically.
+    await page.evaluate(()=>{clearTimeout(timer);state=P.create();P.deal(state);state.contract={...P.bids[0]};state.declarer=1;state.whist=[false,null,true];state.phase='play';state.turn=0;speed=1200;paused=false;render()});
+    assert.equal(await page.locator('[data-word-player="0"]').textContent(),'Пас');assert.equal(await page.locator('[data-word-player="1"]').textContent(),'6 ♠');assert.equal(await page.locator('[data-word-player="2"]').textContent(),'Вист');
+    assert.equal(await page.locator('#hand .card:not(:disabled)').count(),0);assert(!(await page.locator('.partner-hand-area').isVisible()));
+    await page.waitForFunction(()=>state.hands[0].length===9);assert.equal(await page.evaluate(()=>state.trick[0].player),0);
+    await page.evaluate(()=>{clearTimeout(timer);paused=true;render()});await page.reload();assert.equal(await page.evaluate(()=>P.controller(state,0)),2);assert.equal(await page.locator('#hand .card:not(:disabled)').count(),0);
+    // The human whists: both hands are under human control and the partner does not auto-play.
+    await page.evaluate(()=>{clearTimeout(timer);state=P.create();P.deal(state);state.contract={...P.bids[0]};state.declarer=1;state.whist=[true,null,false];state.phase='play';state.turn=2;speed=350;paused=false;render()});
+    assert(await page.locator('.partner-hand-area').isVisible());assert.equal(await page.locator('#partnerHand .card').count(),10);assert.equal(await page.locator('#hand .card:not(:disabled)').count(),0);assert.equal(await page.locator('#partnerHand .card:not(:disabled)').count(),10);
+    for(const width of [320,390,740,1366]){await page.setViewportSize({width,height:1000});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Partner hand overflow');const words=await page.locator('[data-word-player]').evaluateAll(xs=>xs.map(x=>{const b=x.getBoundingClientRect();return {left:b.left,right:b.right}}));assert(words.every(b=>b.left>=0&&b.right<=width));if(width===390)await page.screenshot({path:path.join(__dirname,'../whist-mobile.png'),fullPage:true});}
+    await page.locator('#partnerHand .card').first().click({position:{x:8,y:10}});assert.equal(await page.evaluate(()=>state.hands[2].length),9);assert.equal(await page.evaluate(()=>state.trick[0].player),2);assert.equal(await page.evaluate(()=>state.turn),0);assert(await page.locator('#hand .card:not(:disabled)').count()>0);assert.equal(await page.locator('#partnerHand .card:not(:disabled)').count(),0);
+    await page.locator('#hand .card:not(:disabled)').first().click({position:{x:8,y:10}});assert.equal(await page.evaluate(()=>state.hands[0].length),9);
+    // Auction words are visible on the table and persist after a reload.
+    await page.evaluate(()=>{clearTimeout(timer);state=P.create();P.deal(state);state.turn=0;P.bid(state,0,0);P.bid(state,state.turn,null);paused=true;render()});
+    assert.equal(await page.locator('[data-word-player="0"]').textContent(),'6 ♠');assert.equal(await page.locator('[data-word-player="1"]').textContent(),'Пас');await page.reload();assert.equal(await page.locator('[data-word-player="0"]').textContent(),'6 ♠');
     // Play a real final deal: only the declarer needs two more pool points.
     await page.evaluate(()=>{clearTimeout(timer);state=P.create(10);P.deal(state);state.scores.forEach(s=>s.pool=10);state.scores[0].pool=8;state.scores[0].hill=0;state.scores[1].hill=9;state.scores[2].hill=6;state.turn=0;state.first=0;paused=true;render()});
     await page.click('[data-action="resume"]');await page.selectOption('#bidSelect','0');await page.click('[data-action="bid"]');

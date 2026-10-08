@@ -1,1 +1,1 @@
-{"name":"preferans","version":"1.1.0","private":true,"scripts":{"start":"node server.cjs","test":"node --test tests/*.test.cjs"}}
+{"name":"preferans","version":"1.2.0","private":true,"scripts":{"start":"node server.cjs","test":"node --test tests/*.test.cjs"}}
