@@ -1,0 +1,11 @@
+node_modules/
+*.log
+.env
+.env.*
+test-results/
+playwright-report/
+/initial.png
+/desktop.png
+/mobile.png
+/results-desktop.png
+/results-mobile.png
